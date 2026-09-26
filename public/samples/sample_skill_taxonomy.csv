@@ -1,0 +1,6 @@
+canonical_name,category,alias,qualification_code,description
+"React JS","Software Development","ReactJS","IT-DEV-001","Frontend user interface library for single-page applications."
+"Node JS","Software Development","NodeJS","IT-DEV-002","Server-side asynchronous JavaScript runtime environment."
+"ML","Artificial Intelligence","Machine-Learning","IT-AI-001","Statistical learning algorithms, regression, and model training."
+"EV Battery Health","Automotive Engineering","Battery Pack Testing","AUTO-EV-001","Testing and thermal diagnostics for lithium-ion battery modules."
+"CAN Bus","Automotive Electronics","Controller Area Network","AUTO-ELE-003","Vehicle serial communication bus network protocol."

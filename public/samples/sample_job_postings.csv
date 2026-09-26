@@ -1,0 +1,8 @@
+title,company,district,sector,experience_min,experience_max,posted_date,raw_skills,description
+"EV Battery Diagnostic Specialist","Tata Motors EV Systems","Pune","Automotive and EV",2,5,"2026-03-01","EV Battery Diagnostics, BMS, Cell Testing","Lead fault diagnostics and battery pack state-of-health estimation."
+"Senior React & TypeScript Developer","Persistent Systems","Pune","Information Technology",3,6,"2026-03-02","React JS, TypeScript, REST API","Build enterprise React single-page frontend applications."
+"CAN Bus Systems Engineer","Bosch India","Nashik","Automotive and EV",1,4,"2026-03-03","CAN Bus Diagnostics, CAN Bus, Automotive Electronics","Vehicle bus network protocol decoding and sensor calibration."
+"Cloud Infrastructure Architect","InfoCepts Tech","Nagpur","Information Technology",4,8,"2026-03-04","AWS, Azure, Docker, Kubernetes","Deploy scalable microservices and serverless infrastructure on AWS."
+"GenAI RAG Application Engineer","KPIT Technologies","Pune","Information Technology",2,5,"2026-03-05","GenAI, LLM, Python, RAG Pipeline","Build RAG search pipelines using Large Language Model APIs."
+"Automotive Technician","Mahindra Electric","Pune","Automotive and EV",1,3,"INVALID_DATE","BMS, Battery Pack Testing","Invalid date row for validation testing."
+"","Anonymous Ltd","Pune","Information Technology",0,2,"2026-03-06","HTML, CSS","Missing title row for validation testing."
