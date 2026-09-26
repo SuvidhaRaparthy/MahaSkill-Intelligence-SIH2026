@@ -1,6 +1,7 @@
-// MahaSkill Intelligence - Employer Validation & Trainer/Equipment Capacity Analytics Engine (Phase 6)
 import { supabase } from '../lib/supabase';
 import { calculateSkillDemandSupplyGaps } from './demandSupplyGapEngine';
+import { SEED_EMPLOYER_VALIDATIONS } from '../data/seedData';
+import type { EmployerValidationRecord } from '../types/database';
 
 export interface EmployerValidationSignal {
   id: string;
@@ -33,6 +34,7 @@ export interface EmployerValidationSummary {
   represented_sectors: string[];
   represented_districts: string[];
   sample_comments: string[];
+  total_validations_count: number;
 }
 
 export interface TrainerCapacityItem {
@@ -122,13 +124,15 @@ export async function calculateEmployerValidationSummary(
     { data: dbEmployers },
     { data: dbSkills },
     { data: dbDistricts },
-    { data: dbSectors }
+    { data: dbSectors },
+    { data: dbValidations }
   ] = await Promise.all([
     supabase.from('employer_signals').select('*'),
     supabase.from('employers').select('*'),
     supabase.from('skills').select('*'),
     supabase.from('districts').select('*'),
-    supabase.from('sectors').select('*')
+    supabase.from('sectors').select('*'),
+    supabase.from('employer_validations').select('*')
   ]);
 
   const signals = dbSignals || [];
@@ -136,6 +140,9 @@ export async function calculateEmployerValidationSummary(
   const skills = dbSkills || [];
   const districts = dbDistricts || [];
   const sectors = dbSectors || [];
+  const validations: EmployerValidationRecord[] = (dbValidations && dbValidations.length > 0)
+    ? dbValidations
+    : SEED_EMPLOYER_VALIDATIONS;
 
   const empMap = new Map<string, string>(employers.map((e: any) => [e.id, e.company_name || e.name]));
   const distMap = new Map<string, string>(districts.map((d: any) => [d.id, d.name]));
@@ -188,12 +195,45 @@ export async function calculateEmployerValidationSummary(
     if (sig.comments) sampleComments.push(sig.comments);
   });
 
-  const count = validatingEmployerIds.size;
-  const stronglyAgreeCount = count; // Derived from active employer hiring signal presence
-  const agreeCount = 0;
-  const disagreeCount = 0;
-  const agreementPct = count > 0 ? 100 : 0; // 100% agreement consensus across reporting employers
+  // Filter explicit validation records for matching skill
+  let matchingValidations = validations;
+  if (targetSkill) {
+    matchingValidations = matchingValidations.filter((v: any) => v.skill_id === targetSkill.id);
+  } else {
+    matchingValidations = matchingValidations.filter((v: any) =>
+      v.comments && v.comments.toLowerCase().includes(skillName.toLowerCase())
+    );
+  }
 
+  matchingValidations.forEach((v: any) => {
+    if (v.comments && !sampleComments.includes(v.comments)) {
+      sampleComments.push(v.comments);
+    }
+  });
+
+  const totalValidationsCount = matchingValidations.length;
+  let stronglyAgreeCount = 0; // CONFIRM
+  let agreeCount = 0;          // EDIT
+  let disagreeCount = 0;       // REJECT
+
+  matchingValidations.forEach((v: any) => {
+    if (v.validation === 'CONFIRM') {
+      stronglyAgreeCount++;
+    } else if (v.validation === 'EDIT') {
+      agreeCount++;
+    } else if (v.validation === 'REJECT') {
+      disagreeCount++;
+    }
+  });
+
+  let agreementPct = 0;
+  if (totalValidationsCount > 0) {
+    agreementPct = Math.round((stronglyAgreeCount / totalValidationsCount) * 100);
+  } else {
+    agreementPct = 0; // No explicit validation records -> 0% (validation pending)
+  }
+
+  const count = validatingEmployerIds.size;
   const industryValidationScore = count === 0
     ? 0
     : Math.min(100, Math.round(50 + count * 20 + Math.min(30, expectedHiresSum * 0.25)));
@@ -212,7 +252,8 @@ export async function calculateEmployerValidationSummary(
     confidence_contribution: confidenceContribution,
     represented_sectors: Array.from(representedSectors),
     represented_districts: Array.from(representedDistricts),
-    sample_comments: sampleComments
+    sample_comments: sampleComments,
+    total_validations_count: totalValidationsCount
   };
 }
 

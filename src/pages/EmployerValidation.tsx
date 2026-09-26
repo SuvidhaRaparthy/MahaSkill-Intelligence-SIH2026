@@ -227,7 +227,9 @@ export const EmployerValidation: React.FC = () => {
           </div>
           <div className="text-2xl font-bold text-amber-700">{summary?.industry_validation_score || 0} / 100</div>
           <div className="text-[10px] text-amber-800 font-mono">
-            {summary?.agreement_pct || 0}% agreement consensus
+            {(summary?.total_validations_count ?? 0) > 0
+              ? `${summary?.agreement_pct || 0}% agreement (${summary?.strongly_agree_count}/${summary?.total_validations_count} confirmed)`
+              : 'Validation pending (No explicit employer validations)'}
           </div>
         </div>
 
@@ -451,7 +453,7 @@ export const EmployerValidation: React.FC = () => {
             )}
           </div>
           <div className="text-[10px] text-slate-400 font-mono border-t border-slate-100 pt-2 text-right">
-            employer_validations table: 0 rows | All signals fetched live from Supabase employer_signals table
+            Data Provenance: Employer hiring signals + Relational employer_validations audit
           </div>
         </div>
       </div>

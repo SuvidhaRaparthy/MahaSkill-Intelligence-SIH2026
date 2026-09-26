@@ -94,6 +94,13 @@ INSERT INTO equipment (id, district_id, sector_id, equipment_name, available_qua
 ('i3333333-3333-4333-8333-333333333333', '33333333-3333-4333-8333-333333333333', 'a2222222-2222-4222-8222-222222222222', 'CAN Bus Oscilloscope Kit', 5, 1, true)
 ON CONFLICT DO NOTHING;
 
+-- 8e. Employer Validations
+INSERT INTO employer_validations (id, employer_id, skill_id, recommendation_id, validation, comments) VALUES
+('ev111111-1111-4111-8111-111111111111', 'e1111111-1111-4111-8111-111111111111', 'c1111111-1111-4111-8111-111111111111', 'f3333333-3333-4333-8333-333333333333', 'CONFIRM', 'Tata Motors confirms 100% agreement with ITI Pune EV module addition.'),
+('ev222222-2222-4222-8222-222222222222', 'e2222222-2222-4222-8222-222222222222', 'c1111111-1111-4111-8111-111111111111', 'f3333333-3333-4333-8333-333333333333', 'CONFIRM', 'Mahindra Electric confirms urgent need for EV battery technicians.'),
+('ev333333-3333-4333-8333-333333333333', 'e4444444-4444-4444-8444-444444444444', 'c8888888-8888-4888-8888-888888888888', 'f5555555-5555-4555-8555-555555555555', 'CONFIRM', 'Persistent Systems confirms reallocation from Legacy PHP to React/Cloud.')
+ON CONFLICT DO NOTHING;
+
 -- 9. Recommendations (Priority Actions for Action Center)
 INSERT INTO recommendations (id, district_id, sector_id, skill_id, course_id, recommendation_type, priority, gap_score, confidence, status, summary) VALUES
 ('f3333333-3333-4333-8333-333333333333', '11111111-1111-4111-8111-111111111111', 'a2222222-2222-4222-8222-222222222222', 'c1111111-1111-4111-8111-111111111111', 'd4444444-4444-4444-8444-444444444444', 'ADD_SKILL', 'CRITICAL', 55.00, 82.00, 'PENDING', 'Add EV Battery Diagnostics module to ITI Pune curriculum due to 154% surging employer hiring demand.'),
