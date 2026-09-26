@@ -1,12 +1,25 @@
-﻿const { normalizeSkillText } = require('../src/data-import/skillNormalizer.ts');
+const { normalizeSkillText } = require('../src/data-import/skillNormalizer.ts');
 const { normalizeOccupationTitle } = require('../src/data-import/occupationNormalizer.ts');
 const { extractSkillsDeterministic } = require('../src/data-import/skillExtractor.ts');
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://erfltqteyqmshbituvdv.supabase.co';
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const fs = require('fs');
+const path = require('path');
 
-const supabase = createClient(supabaseUrl, serviceKey, {
+try {
+  const envConfig = fs.readFileSync(path.resolve(process.cwd(), '.env'), 'utf-8');
+  envConfig.split('\n').forEach((line) => {
+    const [key, ...value] = line.split('=');
+    if (key && value.length > 0) {
+      process.env[key.trim()] = value.join('=').trim();
+    }
+  });
+} catch (e) {}
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://erfltqteyqmshbituvdv.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: { persistSession: false }
 });
 

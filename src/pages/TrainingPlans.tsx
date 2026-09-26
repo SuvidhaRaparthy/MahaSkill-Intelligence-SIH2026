@@ -40,17 +40,29 @@ export const TrainingPlans: React.FC = () => {
   const [selectedPlan, setSelectedPlan] = useState<DistrictTrainingPlanItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
     loadData();
   }, [filters]);
 
   const loadData = async () => {
-    const [pData, cData] = await Promise.all([
-      generateDistrictTrainingPlans(filters),
-      generateDistrictComparisons()
-    ]);
-    setPlans(pData);
-    setComparisons(cData);
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const [pData, cData] = await Promise.all([
+        generateDistrictTrainingPlans(filters),
+        generateDistrictComparisons()
+      ]);
+      setPlans(pData);
+      setComparisons(cData);
+    } catch (err: any) {
+      console.error('Failed to generate district training plans:', err);
+      setLoadError(err?.message || 'Failed to query live district training plan engine from Supabase.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const filteredPlans = plans.filter((p) => {
@@ -85,8 +97,19 @@ export const TrainingPlans: React.FC = () => {
           </p>
         </div>
 
-        <DataClassificationBadge classification="SYNTHETIC_DEMO_DATA" />
+        <DataClassificationBadge classification="REAL_PUBLIC_DATA" />
       </div>
+
+      {/* Error Alert Banner */}
+      {loadError && (
+        <div className="bg-rose-50 border border-rose-300 p-4 rounded-xl flex items-center gap-3 text-xs text-rose-800 shadow-xs">
+          <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+          <div>
+            <div className="font-bold">Phase 7 Engine Execution Error</div>
+            <div>{loadError}</div>
+          </div>
+        </div>
+      )}
 
       {/* Maharashtra Overview Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -184,7 +207,7 @@ export const TrainingPlans: React.FC = () => {
             <Filter className="w-3.5 h-3.5 text-indigo-600" />
             <span>Training Plan Filters</span>
           </div>
-          <DataClassificationBadge classification="SYNTHETIC_DEMO_DATA" showIcon={false} />
+          <DataClassificationBadge classification="DERIVED_METRIC" showIcon={false} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -258,6 +281,13 @@ export const TrainingPlans: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Loading Indicator */}
+      {isLoading && (
+        <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs">
+          Synthesizing district training plan outputs from remote Supabase...
+        </div>
+      )}
 
       {/* Main District Training Plans Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs space-y-3">

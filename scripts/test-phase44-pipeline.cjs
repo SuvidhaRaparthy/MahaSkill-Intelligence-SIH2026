@@ -1,12 +1,24 @@
-﻿// MahaSkill Intelligence - Phase 4.4 Live Pipeline Test Suite
+// MahaSkill Intelligence - Phase 4.4 Live Pipeline Test Suite
 // Verifies Demand-Aligned Coverage Methodology against active remote Supabase database
 
 const { createClient } = require('@supabase/supabase-js');
+const fs = require('fs');
+const path = require('path');
+
+try {
+  const envConfig = fs.readFileSync(path.resolve(process.cwd(), '.env'), 'utf-8');
+  envConfig.split('\n').forEach((line) => {
+    const [key, ...value] = line.split('=');
+    if (key && value.length > 0) {
+      process.env[key.trim()] = value.join('=').trim();
+    }
+  });
+} catch (e) {}
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://erfltqteyqmshbituvdv.supabase.co';
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
-const supabase = createClient(supabaseUrl, serviceKey, {
+const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: { persistSession: false }
 });
 

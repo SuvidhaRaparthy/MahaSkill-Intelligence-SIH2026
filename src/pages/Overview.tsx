@@ -1,5 +1,5 @@
 // MahaSkill Intelligence - Main Government Intelligence Dashboard (Overview)
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Activity, Lightbulb, TrendingUp, AlertTriangle, CheckCircle, 
   MapPin, ArrowUpRight, ArrowDownRight, Layers, ChevronRight
@@ -11,6 +11,9 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, 
   BarChart, Bar, Legend, PieChart, Pie, Cell 
 } from 'recharts';
+import { supabase } from '../lib/supabase';
+import { calculateSkillDemandSupplyGaps } from '../analytics/demandSupplyGapEngine';
+import { detectEmergingSkills, generateCurriculumRecommendations } from '../analytics/emergingAndCurriculumEngine';
 
 // Time series demand trend mock data
 const DEMAND_TREND_DATA = [
@@ -21,7 +24,7 @@ const DEMAND_TREND_DATA = [
   { month: 'Feb 2026', EV_Diagnostics: 28, React_JS: 142, Cloud_Arch: 78, Legacy_PHP: 14 }
 ];
 
-// Emerging skills growth chart data
+// Emerging skills growth chart data baseline
 const EMERGING_SKILLS_DATA = [
   { name: 'EV Battery Diagnostics', growth: 154, posting_count: 28, employer_count: 8 },
   { name: 'GenAI & LLM Integration', growth: 180, posting_count: 36, employer_count: 14 },
@@ -30,7 +33,7 @@ const EMERGING_SKILLS_DATA = [
   { name: 'BMS Calibration', growth: 85, posting_count: 22, employer_count: 7 }
 ];
 
-// Demand vs Supply Gap data
+// Demand vs Supply Gap data baseline
 const GAP_COMPARISON_DATA = [
   { skill: 'EV Diagnostics', demand: 84, supply: 29 },
   { skill: 'React.js', demand: 91, supply: 58 },
@@ -47,6 +50,84 @@ const SECTOR_DATA = [
 
 export const Overview: React.FC = () => {
   const [selectedDistrict, setSelectedDistrict] = useState<string>('ALL');
+
+  // Dynamic Dashboard State derived from Remote Supabase & Phase 3–8 Analytics Engines
+  const [metrics, setMetrics] = useState({
+    jobSignals: 300,
+    skillsTracked: 14,
+    emergingSkills: 10,
+    undersupplied: 10,
+    oversupply: 3,
+    curriculumMismatches: 14,
+    validations: 3,
+    districts: 3
+  });
+
+  const [emergingChartData, setEmergingChartData] = useState(EMERGING_SKILLS_DATA);
+  const [gapChartData, setGapChartData] = useState(GAP_COMPARISON_DATA);
+
+  useEffect(() => {
+    loadDashboardMetrics();
+  }, [selectedDistrict]);
+
+  const loadDashboardMetrics = async () => {
+    try {
+      const [
+        { count: jpCount },
+        { count: sCount },
+        { count: esCount },
+        { count: dCount },
+        emerging,
+        gaps,
+        curriculum
+      ] = await Promise.all([
+        supabase.from('job_postings').select('id', { count: 'exact', head: true }),
+        supabase.from('skills').select('id', { count: 'exact', head: true }),
+        supabase.from('employer_signals').select('id', { count: 'exact', head: true }),
+        supabase.from('districts').select('id', { count: 'exact', head: true }),
+        detectEmergingSkills({ districtId: selectedDistrict }),
+        calculateSkillDemandSupplyGaps({ districtId: selectedDistrict }),
+        generateCurriculumRecommendations({ districtId: selectedDistrict })
+      ]);
+
+      const undersuppliedCount = gaps.filter(g => g.classification.status.includes('SHORTAGE') || g.coveragePercent < 90).length;
+      const oversupplyCount = gaps.filter(g => g.classification.status.includes('OVERSUPPLY') || g.coveragePercent > 125).length;
+
+      setMetrics({
+        jobSignals: jpCount ?? 300,
+        skillsTracked: sCount ?? 14,
+        emergingSkills: emerging.length,
+        undersupplied: undersuppliedCount,
+        oversupply: oversupplyCount,
+        curriculumMismatches: curriculum.length,
+        validations: esCount ?? 3,
+        districts: dCount ?? 3
+      });
+
+      if (emerging.length > 0) {
+        setEmergingChartData(
+          emerging.slice(0, 5).map(e => ({
+            name: e.canonical_name,
+            growth: e.growth_rate_pct || 0,
+            posting_count: e.recent_demand_count,
+            employer_count: e.employer_count
+          }))
+        );
+      }
+
+      if (gaps.length > 0) {
+        setGapChartData(
+          gaps.slice(0, 5).map(g => ({
+            skill: g.skill_name.length > 15 ? g.skill_name.substring(0, 14) + '...' : g.skill_name,
+            demand: g.demandScore,
+            supply: g.supplyScore
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('[Overview] Error loading live metrics:', err);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -93,7 +174,7 @@ export const Overview: React.FC = () => {
               <span>SIH 2026 Recommended Presentation Sequence</span>
               <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-mono font-semibold">Verified Flow</span>
             </div>
-            <p className="text-[11px] text-slate-600">Primary Story: Pune EV Battery Diagnostics → District Training Plan (+280 seats) → Policy Simulator</p>
+            <p className="text-[11px] text-slate-600">Primary Story: Pune React.js (+180 seats) / EV Battery Diagnostics → District Training Plan → Policy Simulator</p>
           </div>
         </div>
 
@@ -131,9 +212,9 @@ export const Overview: React.FC = () => {
             <span>Job Signals</span>
             <Activity className="w-3.5 h-3.5 text-indigo-600" />
           </div>
-          <div className="text-xl font-bold text-slate-900 mt-1">328</div>
+          <div className="text-xl font-bold text-slate-900 mt-1">{metrics.jobSignals}</div>
           <div className="text-[10px] text-emerald-600 flex items-center font-medium mt-0.5">
-            <ArrowUpRight className="w-3 h-3" /> +18% vs prev mo
+            <ArrowUpRight className="w-3 h-3" /> Verified Postings
           </div>
         </div>
 
@@ -142,7 +223,7 @@ export const Overview: React.FC = () => {
             <span>Skills Tracked</span>
             <Lightbulb className="w-3.5 h-3.5 text-amber-600" />
           </div>
-          <div className="text-xl font-bold text-slate-900 mt-1">42</div>
+          <div className="text-xl font-bold text-slate-900 mt-1">{metrics.skillsTracked}</div>
           <div className="text-[10px] text-slate-500 mt-0.5">Canonical Taxonomy</div>
         </div>
 
@@ -151,7 +232,7 @@ export const Overview: React.FC = () => {
             <span>Emerging Skills</span>
             <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
           </div>
-          <div className="text-xl font-bold text-amber-600 mt-1">7</div>
+          <div className="text-xl font-bold text-amber-600 mt-1">{metrics.emergingSkills}</div>
           <div className="text-[10px] text-amber-700 font-medium mt-0.5">Alerts Triggered</div>
         </div>
 
@@ -160,7 +241,7 @@ export const Overview: React.FC = () => {
             <span>Undersupplied</span>
             <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
           </div>
-          <div className="text-xl font-bold text-rose-600 mt-1">12</div>
+          <div className="text-xl font-bold text-rose-600 mt-1">{metrics.undersupplied}</div>
           <div className="text-[10px] text-rose-600 font-medium mt-0.5">High Gap Score</div>
         </div>
 
@@ -169,7 +250,7 @@ export const Overview: React.FC = () => {
             <span>Oversupply</span>
             <ArrowDownRight className="w-3.5 h-3.5 text-purple-600" />
           </div>
-          <div className="text-xl font-bold text-purple-600 mt-1">4</div>
+          <div className="text-xl font-bold text-purple-600 mt-1">{metrics.oversupply}</div>
           <div className="text-[10px] text-slate-500 mt-0.5">Courses Flagged</div>
         </div>
 
@@ -178,7 +259,7 @@ export const Overview: React.FC = () => {
             <span>Curriculum Mismatches</span>
             <Layers className="w-3.5 h-3.5 text-blue-600" />
           </div>
-          <div className="text-xl font-bold text-blue-600 mt-1">9</div>
+          <div className="text-xl font-bold text-blue-600 mt-1">{metrics.curriculumMismatches}</div>
           <div className="text-[10px] text-slate-500 mt-0.5">Modules for Review</div>
         </div>
 
@@ -187,7 +268,7 @@ export const Overview: React.FC = () => {
             <span>Validations</span>
             <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
           </div>
-          <div className="text-xl font-bold text-emerald-600 mt-1">18</div>
+          <div className="text-xl font-bold text-emerald-600 mt-1">{metrics.validations}</div>
           <div className="text-[10px] text-emerald-700 font-medium mt-0.5">Employer Verified</div>
         </div>
 
@@ -196,7 +277,7 @@ export const Overview: React.FC = () => {
             <span>Districts</span>
             <MapPin className="w-3.5 h-3.5 text-indigo-600" />
           </div>
-          <div className="text-xl font-bold text-slate-900 mt-1">3</div>
+          <div className="text-xl font-bold text-slate-900 mt-1">{metrics.districts}</div>
           <div className="text-[10px] text-slate-500 mt-0.5">Pune, Nashik, Nagpur</div>
         </div>
       </div>
@@ -297,7 +378,7 @@ export const Overview: React.FC = () => {
 
           <div className="h-60 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={EMERGING_SKILLS_DATA} layout="vertical" margin={{ top: 5, right: 20, left: 40, bottom: 5 }}>
+              <BarChart data={emergingChartData} layout="vertical" margin={{ top: 5, right: 20, left: 40, bottom: 5 }}>
                 <XAxis type="number" stroke="#64748b" fontSize={11} tickFormatter={(val) => `+${val}%`} />
                 <YAxis dataKey="name" type="category" stroke="#334155" fontSize={11} width={130} tickLine={false} />
                 <Tooltip 
@@ -322,7 +403,7 @@ export const Overview: React.FC = () => {
 
           <div className="h-60 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={GAP_COMPARISON_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <BarChart data={gapChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <XAxis dataKey="skill" stroke="#64748b" fontSize={11} tickLine={false} />
                 <YAxis stroke="#64748b" fontSize={11} domain={[0, 100]} />
                 <Tooltip 

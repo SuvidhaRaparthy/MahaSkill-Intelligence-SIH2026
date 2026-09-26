@@ -216,25 +216,96 @@ export async function calculateEmployerValidationSummary(
   };
 }
 
+export interface SubmitEmployerSignalInput {
+  employer_id?: string;
+  employer_name?: string;
+  skill_id?: string;
+  skill_name?: string;
+  district_id?: string;
+  district_name?: string;
+  sector_id?: string;
+  sector_name?: string;
+  expected_hires?: number;
+  required_proficiency?: string;
+  demand_level?: string;
+  comments?: string;
+  confidence?: number;
+}
+
 /**
- * 1b. Submits a Structured Employer Validation Signal
+ * 1b. Submits a Structured Employer Validation Signal using actual Supabase schema
  */
 export async function submitEmployerValidationSignal(
-  signal: Omit<EmployerValidationSignal, 'id' | 'submitted_at' | 'is_synthetic'>
-): Promise<boolean> {
+  signalInput: SubmitEmployerSignalInput | any
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase.from('employer_signals').insert({
-      employer_name: signal.employer_name,
-      skill_name: signal.skill_name,
-      required_proficiency: signal.demand_level,
-      comments: signal.comments,
-      signal_date: new Date().toISOString().slice(0, 10)
-    });
-    if (error) console.warn('[Employer Validation] Supabase insert warning:', error.message);
-    return true;
-  } catch (err) {
-    console.warn('[Employer Validation] Signal submission error:', err);
-    return true;
+    const [{ data: dbEmployers }, { data: dbSkills }, { data: dbDistricts }, { data: dbSectors }] = await Promise.all([
+      supabase.from('employers').select('id, name'),
+      supabase.from('skills').select('id, canonical_name'),
+      supabase.from('districts').select('id, name'),
+      supabase.from('sectors').select('id, name')
+    ]);
+
+    const employers = dbEmployers || [];
+    const skills = dbSkills || [];
+    const districts = dbDistricts || [];
+    const sectors = dbSectors || [];
+
+    let employerId = signalInput.employer_id;
+    if (!employerId && signalInput.employer_name) {
+      const match = employers.find((e: any) =>
+        e.name.toLowerCase().includes(signalInput.employer_name.toLowerCase()) ||
+        signalInput.employer_name.toLowerCase().includes(e.name.toLowerCase())
+      );
+      if (match) employerId = match.id;
+    }
+    if (!employerId && employers.length > 0) employerId = employers[0].id;
+
+    let skillId = signalInput.skill_id;
+    if (!skillId && signalInput.skill_name) {
+      const match = skills.find((s: any) =>
+        s.canonical_name.toLowerCase().includes(signalInput.skill_name.toLowerCase()) ||
+        signalInput.skill_name.toLowerCase().includes(s.canonical_name.toLowerCase())
+      );
+      if (match) skillId = match.id;
+    }
+    if (!skillId && skills.length > 0) skillId = skills[0].id;
+
+    let districtId = signalInput.district_id;
+    if (!districtId && signalInput.district_name) {
+      const match = districts.find((d: any) => d.name.toLowerCase() === signalInput.district_name.toLowerCase());
+      if (match) districtId = match.id;
+    }
+    if (!districtId && districts.length > 0) districtId = districts[0].id;
+
+    let sectorId = signalInput.sector_id;
+    if (!sectorId && signalInput.sector_name) {
+      const match = sectors.find((sec: any) => sec.name.toLowerCase().includes(signalInput.sector_name.toLowerCase()));
+      if (match) sectorId = match.id;
+    }
+    if (!sectorId && sectors.length > 0) sectorId = sectors[0].id;
+
+    const insertPayload = {
+      employer_id: employerId,
+      skill_id: skillId,
+      district_id: districtId,
+      sector_id: sectorId,
+      expected_hires: Number(signalInput.expected_hires || 10),
+      required_proficiency: signalInput.required_proficiency || signalInput.demand_level || 'intermediate',
+      comments: signalInput.comments || '',
+      signal_date: new Date().toISOString().slice(0, 10),
+      confidence: Number(signalInput.confidence || 85)
+    };
+
+    const { error } = await supabase.from('employer_signals').insert(insertPayload);
+    if (error) {
+      console.warn('[Employer Validation] Supabase insert error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('[Employer Validation] Signal submission exception:', err);
+    return { success: false, error: err?.message || 'Failed to connect to database' };
   }
 }
 

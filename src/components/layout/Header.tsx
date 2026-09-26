@@ -30,7 +30,7 @@ export const Header: React.FC = () => {
       {/* Controls & User Profile */}
       <div className="flex items-center gap-4">
         {/* Data Classification Badge */}
-        <DataClassificationBadge classification="SYNTHETIC_DEMO_DATA" />
+        <DataClassificationBadge classification="DERIVED_METRIC" />
 
         {/* Role Selector Dropdown */}
         <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">

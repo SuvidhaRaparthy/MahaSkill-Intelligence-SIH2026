@@ -1,5 +1,5 @@
-import { normalizeSkillText } from './skillNormalizer';
-import type { NormalizedSkillResult } from './skillNormalizer';
+import { normalizeSkillText } from './skillNormalizer.ts';
+import type { NormalizedSkillResult } from './skillNormalizer.ts';
 import type { MappingMethod, ProficiencyLevel } from '../types/database';
 
 export interface ExtractedSkillItem {

@@ -37,13 +37,13 @@ export const PolicySimulator: React.FC = () => {
 
   // Interactive Simulation Input State
   const [inputs, setInputs] = useState<SimulationInputs>({
-    additional_seats: 280,
-    additional_trainers: 8,
-    additional_equipment: 13,
-    curriculum_module_added: true
+    additional_seats: 0,
+    additional_trainers: 1,
+    additional_equipment: 3,
+    curriculum_module_added: false
   });
 
-  const [scenarioNameInput, setScenarioNameInput] = useState('Scenario A (+280 seats, +8 trainers)');
+  const [scenarioNameInput, setScenarioNameInput] = useState('Scenario A: Target Resource Allocation');
 
   // Baseline & Simulation Result State
   const [baseline, setBaseline] = useState<BaselineScenarioMetrics | null>(null);
@@ -54,6 +54,7 @@ export const PolicySimulator: React.FC = () => {
   const [savedSimulations, setSavedSimulations] = useState<SimulationRecord[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,22 +63,71 @@ export const PolicySimulator: React.FC = () => {
 
   const loadBaselineData = async () => {
     setLoading(true);
-    const bData = await getBaselineScenarioMetrics(selectedDistrict, selectedSkill);
-    setBaseline(bData);
+    setLoadError(null);
+    try {
+      const bData = await getBaselineScenarioMetrics(selectedDistrict, selectedSkill);
+      setBaseline(bData);
 
-    const initialSim = runPolicySimulation(bData, inputs, scenarioNameInput);
-    setCurrentSimulation(initialSim);
+      // Determine appropriate default policy inputs for selected target skill
+      let targetInputs: SimulationInputs = {
+        additional_seats: 0,
+        additional_trainers: 0,
+        additional_equipment: 0,
+        curriculum_module_added: false
+      };
+      let targetLabel = 'Baseline Scenario (0 inputs)';
 
-    // Default comparative preset scenarios for side-by-side comparison matrix
-    const scA = runPolicySimulation(bData, { additional_seats: 100, additional_trainers: 0, additional_equipment: 0, curriculum_module_added: false }, 'Scenario A: Seat Expansion Only (+100 seats)');
-    const scB = runPolicySimulation(bData, { additional_seats: 280, additional_trainers: 8, additional_equipment: 13, curriculum_module_added: true }, 'Scenario B: Full Resource Allocation (+280 seats, +8 trainers, +13 kits)');
-    const scC = runPolicySimulation(bData, { additional_seats: 500, additional_trainers: 15, additional_equipment: 20, curriculum_module_added: true }, 'Scenario C: Maximum Capacity Grant (+500 seats, +15 trainers, +20 kits)');
-    
-    setComparedScenarios([scA, scB, scC]);
+      if (bData.skill_name.toLowerCase().includes('react')) {
+        targetInputs = {
+          additional_seats: 180,
+          additional_trainers: 6,
+          additional_equipment: 18,
+          curriculum_module_added: true
+        };
+        targetLabel = 'Scenario A: Full Gap Resolution (+180 seats, +6 trainers, +18 workstations)';
+      } else if (bData.skill_name.toLowerCase().includes('ev battery')) {
+        targetInputs = {
+          additional_seats: 0,
+          additional_trainers: 1,
+          additional_equipment: 3,
+          curriculum_module_added: false
+        };
+        targetLabel = 'Scenario A: Lab & Instructor Upgrade (+1 trainer, +3 benches)';
+      }
 
-    const saved = await fetchSavedSimulations();
-    setSavedSimulations(saved);
-    setLoading(false);
+      setInputs(targetInputs);
+      setScenarioNameInput(targetLabel);
+
+      const initialSim = runPolicySimulation(bData, targetInputs, targetLabel);
+      setCurrentSimulation(initialSim);
+
+      // Preset comparative scenarios for side-by-side matrix
+      const scA = runPolicySimulation(
+        bData,
+        { additional_seats: Math.max(0, Math.ceil(bData.direct_demand - bData.effective_supply)), additional_trainers: 0, additional_equipment: 0, curriculum_module_added: false },
+        'Scenario 1: Seat Expansion Only'
+      );
+      const scB = runPolicySimulation(
+        bData,
+        targetInputs,
+        'Scenario 2: Target Resource Allocation'
+      );
+      const scC = runPolicySimulation(
+        bData,
+        { additional_seats: targetInputs.additional_seats + 100, additional_trainers: targetInputs.additional_trainers + 5, additional_equipment: targetInputs.additional_equipment + 10, curriculum_module_added: true },
+        'Scenario 3: Maximum Expansion Grant'
+      );
+
+      setComparedScenarios([scA, scB, scC]);
+
+      const saved = await fetchSavedSimulations();
+      setSavedSimulations(saved);
+    } catch (err: any) {
+      console.error('Failed to load Policy Simulator baseline data:', err);
+      setLoadError(err?.message || 'Failed to query live baseline metrics from Supabase database.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -119,11 +169,11 @@ export const PolicySimulator: React.FC = () => {
 
   const bestScenario = identifyBestScenario(comparedScenarios);
 
-  if (loading || !baseline || !currentSimulation) {
+  if (loading) {
     return (
       <div className="p-8 text-center text-slate-500">
         <div className="animate-spin w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full mx-auto mb-2"></div>
-        <span>Loading Policy What-If Simulator Baseline Data...</span>
+        <span>Loading Policy What-If Simulator Baseline Data from Supabase...</span>
       </div>
     );
   }
@@ -151,6 +201,17 @@ export const PolicySimulator: React.FC = () => {
           <span>FORECAST / SIMULATION — NOT AN OFFICIAL GOVERNMENT TARGET</span>
         </div>
       </div>
+
+      {/* Error Alert Banner */}
+      {loadError && (
+        <div className="bg-rose-50 border border-rose-300 p-4 rounded-xl flex items-center gap-3 text-xs text-rose-800 shadow-xs">
+          <Info className="w-5 h-5 text-rose-600 shrink-0" />
+          <div>
+            <div className="font-bold">Simulator Baseline Query Error</div>
+            <div>{loadError}</div>
+          </div>
+        </div>
+      )}
 
       {/* Target Selection Bar */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
@@ -227,7 +288,7 @@ export const PolicySimulator: React.FC = () => {
               value={scenarioNameInput}
               onChange={(e) => setScenarioNameInput(e.target.value)}
               className="w-full bg-slate-50 text-slate-800 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 font-medium"
-              placeholder="e.g. Scenario B: Capacity Grant (+280 seats)"
+              placeholder="e.g. Scenario B: Capacity Expansion"
             />
           </div>
 

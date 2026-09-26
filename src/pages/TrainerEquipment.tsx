@@ -36,19 +36,31 @@ export const TrainerEquipment: React.FC = () => {
   const [readiness, setReadiness] = useState<TrainingReadinessItem[]>([]);
   const [selectedReadiness, setSelectedReadiness] = useState<TrainingReadinessItem | null>(null);
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
     loadCapacityData();
   }, [districtFilter, sectorFilter]);
 
   const loadCapacityData = async () => {
-    const [tData, eData, rData] = await Promise.all([
-      calculateTrainerCapacity(districtFilter),
-      calculateEquipmentCapacity(districtFilter),
-      calculateTrainingReadiness(districtFilter, sectorFilter)
-    ]);
-    setTrainers(tData);
-    setEquipment(eData);
-    setReadiness(rData);
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const [tData, eData, rData] = await Promise.all([
+        calculateTrainerCapacity(districtFilter),
+        calculateEquipmentCapacity(districtFilter),
+        calculateTrainingReadiness(districtFilter, sectorFilter)
+      ]);
+      setTrainers(tData);
+      setEquipment(eData);
+      setReadiness(rData);
+    } catch (err: any) {
+      console.error('Failed to load capacity audit data from Supabase:', err);
+      setLoadError(err?.message || 'Failed to query live capacity data from Supabase database.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const trainerShortageCount = trainers.filter((t) => t.status === 'TRAINER SHORTAGE').length;
@@ -72,7 +84,37 @@ export const TrainerEquipment: React.FC = () => {
           </p>
         </div>
 
-        <DataClassificationBadge classification="SYNTHETIC_DEMO_DATA" />
+        <DataClassificationBadge classification="REAL_PUBLIC_DATA" />
+      </div>
+
+      {/* Error Alert Banner */}
+      {loadError && (
+        <div className="bg-rose-50 border border-rose-300 p-4 rounded-xl flex items-center gap-3 text-xs text-rose-800 shadow-xs">
+          <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+          <div>
+            <div className="font-bold">Capacity Data Query Error</div>
+            <div>{loadError}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Capacity Planning Methodology Notice */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-2 text-slate-700 shadow-xs">
+        <div className="font-semibold text-slate-900 flex items-center gap-1.5 text-xs">
+          <Info className="w-4 h-4 text-indigo-600 shrink-0" />
+          <span>Capacity Planning Assumptions & Audit Methodology</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] border-t border-slate-200 pt-2 text-slate-600">
+          <div>
+            <strong className="text-slate-800">1. Instructor Basis (Prototype Assumption):</strong> 1 certified trainer required per 35 annual trainees (<code className="bg-slate-200 px-1 py-0.5 rounded text-[10px]">ceil(seats / 35)</code> for mapped courses, <code className="bg-slate-200 px-1 py-0.5 rounded text-[10px]">ceil(demand / 35)</code> for unmapped skills).
+          </div>
+          <div>
+            <strong className="text-slate-800">2. Automotive / Lab Hardware:</strong> 1 diagnostic bench per 3 trainees in a 30-trainee lab batch (<code className="bg-slate-200 px-1 py-0.5 rounded text-[10px]">max 10 benches</code> required per batch).
+          </div>
+          <div>
+            <strong className="text-slate-800">3. IT / Software Workstations:</strong> 1 developer PC workstation per 10 annual trainees shared across lab shift schedules (<code className="bg-slate-200 px-1 py-0.5 rounded text-[10px]">ceil(demand / 10)</code>).
+          </div>
+        </div>
       </div>
 
       {/* Summary Stat Cards */}
@@ -82,7 +124,7 @@ export const TrainerEquipment: React.FC = () => {
             <span>Trainer Capacity Shortages</span>
             <UserCheck className="w-4 h-4 text-rose-600" />
           </div>
-          <div className="text-2xl font-bold text-rose-600">{trainerShortageCount} Courses</div>
+          <div className="text-2xl font-bold text-rose-600">{isLoading ? '...' : `${trainerShortageCount} Courses`}</div>
           <div className="text-[10px] text-rose-700 font-mono">Instructor certification gap</div>
         </div>
 
@@ -91,7 +133,7 @@ export const TrainerEquipment: React.FC = () => {
             <span>Equipment Lab Shortages</span>
             <Cpu className="w-4 h-4 text-amber-600" />
           </div>
-          <div className="text-2xl font-bold text-amber-600">{equipmentShortageCount} Labs</div>
+          <div className="text-2xl font-bold text-amber-600">{isLoading ? '...' : `${equipmentShortageCount} Labs`}</div>
           <div className="text-[10px] text-amber-700 font-mono">Diagnostic bench deficit</div>
         </div>
 
@@ -100,7 +142,7 @@ export const TrainerEquipment: React.FC = () => {
             <span>Delivery Readiness Bottlenecks</span>
             <AlertTriangle className="w-4 h-4 text-rose-600" />
           </div>
-          <div className="text-2xl font-bold text-rose-600">{notReadyCount} Skills</div>
+          <div className="text-2xl font-bold text-rose-600">{isLoading ? '...' : `${notReadyCount} Skills`}</div>
           <div className="text-[10px] text-rose-700 font-mono">Investment required before launch</div>
         </div>
 
@@ -110,7 +152,7 @@ export const TrainerEquipment: React.FC = () => {
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-bold text-emerald-600">
-            {readiness.filter((r) => r.overall_status === 'FULLY READY').length} Modules
+            {isLoading ? '...' : `${readiness.filter((r) => r.overall_status === 'FULLY READY').length} Modules`}
           </div>
           <div className="text-[10px] text-emerald-700 font-mono">Trainers & labs fully equipped</div>
         </div>
@@ -123,7 +165,7 @@ export const TrainerEquipment: React.FC = () => {
             <Filter className="w-3.5 h-3.5 text-indigo-600" />
             <span>Capacity Audit Filters</span>
           </div>
-          <DataClassificationBadge classification="SYNTHETIC_DEMO_DATA" showIcon={false} />
+          <DataClassificationBadge classification="DERIVED_METRIC" showIcon={false} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -206,8 +248,15 @@ export const TrainerEquipment: React.FC = () => {
         </button>
       </div>
 
+      {/* Loading Indicator */}
+      {isLoading && (
+        <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs">
+          Loading capacity audit metrics from remote Supabase...
+        </div>
+      )}
+
       {/* Tab 1: Training Delivery Readiness Matrix */}
-      {activeTab === 'readiness' && (
+      {!isLoading && activeTab === 'readiness' && (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[10px]">
@@ -249,6 +298,9 @@ export const TrainerEquipment: React.FC = () => {
                       <span className={item.trainer_readiness_pct < 70 ? 'text-rose-600 font-bold' : 'text-emerald-700 font-bold'}>
                         {item.trainer_readiness_pct}%
                       </span>
+                      <span className="text-[10px] text-slate-400 font-normal">
+                        ({item.metrics.available_trainers}/{item.metrics.required_trainers})
+                      </span>
                     </div>
                   </td>
 
@@ -256,6 +308,9 @@ export const TrainerEquipment: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <span className={item.equipment_readiness_pct < 70 ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'}>
                         {item.equipment_readiness_pct}%
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">
+                        ({item.metrics.available_equipment}/{item.metrics.required_equipment})
                       </span>
                     </div>
                   </td>
@@ -300,7 +355,7 @@ export const TrainerEquipment: React.FC = () => {
       )}
 
       {/* Tab 2: Trainer Capacity Audit */}
-      {activeTab === 'trainers' && (
+      {!isLoading && activeTab === 'trainers' && (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[10px]">
@@ -349,7 +404,7 @@ export const TrainerEquipment: React.FC = () => {
       )}
 
       {/* Tab 3: Equipment Capacity Audit */}
-      {activeTab === 'equipment' && (
+      {!isLoading && activeTab === 'equipment' && (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[10px]">
@@ -419,23 +474,50 @@ export const TrainerEquipment: React.FC = () => {
               </button>
             </div>
 
+            {/* Detailed Component Capacity Breakdown */}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                <div className="font-bold text-indigo-800 flex items-center justify-between">
+                  <span>Instructor Capacity</span>
+                  <span className="font-mono text-indigo-600">{selectedReadiness.trainer_readiness_pct}%</span>
+                </div>
+                <div className="text-[11px] text-slate-700 space-y-0.5">
+                  <div>Available Trainers: <strong>{selectedReadiness.metrics.available_trainers}</strong></div>
+                  <div>Required Trainers: <strong>{selectedReadiness.metrics.required_trainers}</strong></div>
+                  <div>Capacity Gap: <strong className={selectedReadiness.metrics.trainer_gap < 0 ? 'text-rose-600' : 'text-emerald-600'}>{selectedReadiness.metrics.trainer_gap > 0 ? `+${selectedReadiness.metrics.trainer_gap}` : selectedReadiness.metrics.trainer_gap}</strong></div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                <div className="font-bold text-amber-800 flex items-center justify-between">
+                  <span>Equipment Lab Capacity</span>
+                  <span className="font-mono text-amber-600">{selectedReadiness.equipment_readiness_pct}%</span>
+                </div>
+                <div className="text-[11px] text-slate-700 space-y-0.5">
+                  <div>Available Quantity: <strong>{selectedReadiness.metrics.available_equipment}</strong></div>
+                  <div>Required Quantity: <strong>{selectedReadiness.metrics.required_equipment}</strong></div>
+                  <div>Equipment Gap: <strong className={selectedReadiness.metrics.equipment_gap < 0 ? 'text-amber-700' : 'text-emerald-600'}>{selectedReadiness.metrics.equipment_gap > 0 ? `+${selectedReadiness.metrics.equipment_gap}` : selectedReadiness.metrics.equipment_gap}</strong></div>
+                </div>
+              </div>
+            </div>
+
             {/* Score Metrics Grid */}
             <div className="grid grid-cols-4 gap-2 text-center">
               <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                <div className="text-[10px] text-indigo-700 font-medium">Demand</div>
+                <div className="text-[10px] text-indigo-700 font-medium">Demand Score</div>
                 <div className="text-lg font-bold text-indigo-700">{selectedReadiness.demand_score}</div>
               </div>
               <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                <div className="text-[10px] text-amber-800 font-medium">Validation</div>
+                <div className="text-[10px] text-amber-800 font-medium">Validation Score</div>
                 <div className="text-lg font-bold text-amber-700">{selectedReadiness.industry_validation_score}</div>
               </div>
               <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                <div className="text-[10px] text-emerald-700 font-medium">Trainers</div>
-                <div className="text-lg font-bold text-emerald-700">{selectedReadiness.trainer_readiness_pct}%</div>
+                <div className="text-[10px] text-emerald-700 font-medium">Coverage %</div>
+                <div className="text-lg font-bold text-emerald-700">{selectedReadiness.metrics.coverage_pct.toFixed(1)}%</div>
               </div>
               <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                <div className="text-[10px] text-purple-700 font-medium">Equipment</div>
-                <div className="text-lg font-bold text-purple-700">{selectedReadiness.equipment_readiness_pct}%</div>
+                <div className="text-[10px] text-purple-700 font-medium">Readiness Score</div>
+                <div className="text-lg font-bold text-purple-700">{selectedReadiness.overall_readiness_score} / 100</div>
               </div>
             </div>
 
@@ -461,3 +543,4 @@ export const TrainerEquipment: React.FC = () => {
     </div>
   );
 };
+

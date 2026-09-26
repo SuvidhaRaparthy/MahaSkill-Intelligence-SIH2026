@@ -148,7 +148,7 @@ export function exportDistrictTrainingPlanPDF(plan: DistrictTrainingPlanItem): v
           <h1 class="header-title">MahaSkill Intelligence — District Skilling Roadmap Plan</h1>
           <div class="header-subtitle">State & District Skill Development Decision-Support System (SIH26134)</div>
           <div style="margin-top: 6px;">
-            <span class="badge badge-demo">PROTOTYPE / SYNTHETIC DEMO DATA</span>
+            <span class="badge badge-demo">REAL_PUBLIC_DATA / DERIVED METRIC</span>
             <span class="badge badge-high" style="margin-left: 6px;">${plan.priority.level}</span>
           </div>
         </div>

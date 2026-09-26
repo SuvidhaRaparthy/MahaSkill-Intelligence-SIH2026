@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { extractSkillsFromText } from '../data-import/skillExtractor';
 import { normalizeOccupationTitle } from '../data-import/occupationNormalizer';
 import { DemandSupplyGap } from './DemandSupplyGap';
+import { detectEmergingSkills } from '../analytics/emergingAndCurriculumEngine';
 import {
   Cpu,
   Layers,
@@ -179,7 +180,8 @@ const SEED_OCCUPATION_MAPPINGS: DisplayOccupationRow[] = [
 export const SkillIntelligence: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'gap' | 'skills' | 'emerging' | 'occupations' | 'pipeline'>('gap');
   const [skillsData, setSkillsData] = useState<DisplaySkillRow[]>(SEED_SKILL_NORMALIZATIONS);
-  const [occupationsData] = useState<DisplayOccupationRow[]>(SEED_OCCUPATION_MAPPINGS);
+  const [occupationsData, setOccupationsData] = useState<DisplayOccupationRow[]>(SEED_OCCUPATION_MAPPINGS);
+  const [emergingSkillsCount, setEmergingSkillsCount] = useState<number>(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'CANONICAL' | 'UNRESOLVED_EMERGING'>('ALL');
   const [methodFilter, setMethodFilter] = useState<string>('ALL');
@@ -187,7 +189,7 @@ export const SkillIntelligence: React.FC = () => {
   const [extractionLog, setExtractionLog] = useState<string[]>([]);
   const [processingStatus, setProcessingStatus] = useState<string>('Idle');
 
-  // Load real data from Supabase if available
+  // Load real data from Supabase & Phase 5 engine on mount
   useEffect(() => {
     fetchExtractedData();
   }, []);
@@ -195,24 +197,51 @@ export const SkillIntelligence: React.FC = () => {
   const fetchExtractedData = async () => {
     try {
       setIsLoading(true);
-      // Fetch job_skills with skills join
-      const { data: dbJobSkills, error } = await supabase
-        .from('job_skills')
-        .select(`
-          id,
-          raw_skill_text,
-          proficiency,
-          extraction_confidence,
-          skill_id,
-          skills (
+      // Fetch full job_skills without artificial limit, occupations, and emerging skills
+      const [
+        { data: dbJobSkills, error: jsErr },
+        { data: dbOccupations },
+        emergingList
+      ] = await Promise.all([
+        supabase
+          .from('job_skills')
+          .select(`
             id,
-            canonical_name,
-            category
-          )
-        `)
-        .limit(100);
+            raw_skill_text,
+            proficiency,
+            extraction_confidence,
+            skill_id,
+            skills (
+              id,
+              canonical_name,
+              category
+            )
+          `),
+        supabase.from('occupations').select('*'),
+        detectEmergingSkills()
+      ]);
 
-      if (error || !dbJobSkills || dbJobSkills.length === 0) {
+      if (emergingList) {
+        setEmergingSkillsCount(emergingList.length);
+      }
+
+      if (dbOccupations && dbOccupations.length > 0) {
+        const mappedOccs: DisplayOccupationRow[] = dbOccupations.map((o: any) => {
+          const isMapped = Boolean(o.nco_code && o.nco_code !== 'UNMAPPED');
+          const sectorName = o.sector_id?.includes('a1111111') ? 'IT & Software Development' : 'Automotive & EV';
+          return {
+            job_title: o.title,
+            canonical_title: o.title,
+            nco_code: o.nco_code || 'UNMAPPED',
+            confidence: isMapped ? 95 : 40,
+            status: isMapped ? 'MAPPED' : 'UNMAPPED',
+            sector: sectorName
+          };
+        });
+        setOccupationsData(mappedOccs);
+      }
+
+      if (jsErr || !dbJobSkills || dbJobSkills.length === 0) {
         console.log('Using fallback seed normalization data for UI display.');
         setIsLoading(false);
         return;
@@ -386,7 +415,7 @@ export const SkillIntelligence: React.FC = () => {
             <span>Emerging / Unresolved Skills</span>
             <AlertTriangle className="w-4 h-4 text-amber-600" />
           </div>
-          <div className="text-2xl font-bold text-amber-600">{emergingSkillsList.length}</div>
+          <div className="text-2xl font-bold text-amber-600">{emergingSkillsCount || emergingSkillsList.length}</div>
           <div className="text-[10px] text-amber-700 font-mono">Pending Expert Review</div>
         </div>
 

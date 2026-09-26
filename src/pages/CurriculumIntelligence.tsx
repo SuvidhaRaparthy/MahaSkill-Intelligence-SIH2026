@@ -111,7 +111,7 @@ export const CurriculumIntelligence: React.FC = () => {
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-bold text-emerald-600">
-            {recommendations.filter((r) => r.recommendation_type === 'RETAIN').length} Modules
+            {recommendations.filter((r) => r.recommendation_type === 'RETAIN').length} Module{recommendations.filter((r) => r.recommendation_type === 'RETAIN').length === 1 ? '' : 's'}
           </div>
           <div className="text-[10px] text-emerald-700 font-mono">High demand + well covered</div>
         </div>

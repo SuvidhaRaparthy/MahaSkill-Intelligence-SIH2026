@@ -50,6 +50,26 @@ export const EmergingSkills: React.FC = () => {
     return matchesSearch;
   });
 
+  // Dynamic Summary Cards Calculations derived from Live Phase 5 Engine
+  const growthRates = emergingList
+    .map((item) => item.growth_rate_pct)
+    .filter((g): g is number => g !== null && !isNaN(g));
+
+  const avgGrowth = growthRates.length > 0
+    ? Math.round(growthRates.reduce((sum, g) => sum + g, 0) / growthRates.length)
+    : 0;
+
+  const employerSet = new Set<string>();
+  emergingList.forEach((item) => {
+    item.evidence.sample_employers.forEach((emp) => employerSet.add(emp));
+  });
+  const totalEmployerSignals = emergingList.reduce((sum, item) => sum + item.employer_count, 0);
+  const requestingEmployersCount = employerSet.size > 0 ? employerSet.size : totalEmployerSignals;
+
+  const unmappedCount = emergingList.filter(
+    (item) => item.taxonomy_status === 'emerging' || item.taxonomy_status === 'unmapped' || item.category.toLowerCase().includes('unmapped')
+  ).length;
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -89,7 +109,7 @@ export const EmergingSkills: React.FC = () => {
             <span>Average Growth Rate</span>
             <TrendingUp className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-2xl font-bold text-emerald-600">+137%</div>
+          <div className="text-2xl font-bold text-emerald-600">{avgGrowth > 0 ? `+${avgGrowth}%` : 'Stable'}</div>
           <div className="text-[10px] text-slate-500 font-mono">Period-over-period increase</div>
         </div>
 
@@ -98,7 +118,7 @@ export const EmergingSkills: React.FC = () => {
             <span>Distinct Employers Requesting</span>
             <Building2 className="w-4 h-4 text-indigo-600" />
           </div>
-          <div className="text-2xl font-bold text-indigo-700">12+ Employers</div>
+          <div className="text-2xl font-bold text-indigo-700">{requestingEmployersCount} Employers</div>
           <div className="text-[10px] text-indigo-700 font-mono">Multi-employer validation</div>
         </div>
 
@@ -107,7 +127,7 @@ export const EmergingSkills: React.FC = () => {
             <span>Taxonomy Status</span>
             <AlertTriangle className="w-4 h-4 text-rose-600" />
           </div>
-          <div className="text-2xl font-bold text-rose-600">Unmapped in ITI</div>
+          <div className="text-2xl font-bold text-rose-600">{unmappedCount} Unmapped Skills</div>
           <div className="text-[10px] text-rose-700 font-mono">Curriculum addition review required</div>
         </div>
       </div>
@@ -225,7 +245,7 @@ export const EmergingSkills: React.FC = () => {
                   </td>
 
                   <td className="py-3 px-4 font-mono font-extrabold text-emerald-600 text-sm">
-                    +{item.growth_rate_pct}%
+                    {item.growth_rate_pct !== null ? `+${item.growth_rate_pct}%` : 'Baseline / New'}
                   </td>
 
                   <td className="py-3 px-4 font-mono text-slate-800">
