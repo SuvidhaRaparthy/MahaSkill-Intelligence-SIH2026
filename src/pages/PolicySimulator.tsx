@@ -169,6 +169,13 @@ export const PolicySimulator: React.FC = () => {
 
   const bestScenario = identifyBestScenario(comparedScenarios);
 
+  const isIT = baseline?.category.toLowerCase().includes('software') ||
+               baseline?.category.toLowerCase().includes('it') ||
+               baseline?.skill_name.toLowerCase().includes('react') ||
+               baseline?.skill_name.toLowerCase().includes('php') ||
+               baseline?.skill_name.toLowerCase().includes('ai');
+  const equipmentUnitLabel = isIT ? 'workstations' : 'diagnostic kits';
+
   if (loading) {
     return (
       <div className="p-8 text-center text-slate-500">
@@ -369,7 +376,7 @@ export const PolicySimulator: React.FC = () => {
             <div className="flex justify-between text-[10px] font-mono text-slate-500">
               <span>0 (Baseline)</span>
               <span>+15</span>
-              <span>+30 diagnostic kits</span>
+              <span>+30 {equipmentUnitLabel}</span>
             </div>
           </div>
 
@@ -532,7 +539,7 @@ export const PolicySimulator: React.FC = () => {
               </div>
 
               <div className="text-[10px] font-mono text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                Available: {currentSimulation.simulated.equipment_available} / Required: {currentSimulation.baseline.equipment_required} diagnostic kits.
+                Available: {currentSimulation.simulated.equipment_available} / Required: {currentSimulation.baseline.equipment_required} {equipmentUnitLabel}.
               </div>
             </div>
           </div>

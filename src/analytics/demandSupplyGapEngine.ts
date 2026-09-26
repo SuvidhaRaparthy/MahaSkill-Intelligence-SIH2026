@@ -393,8 +393,8 @@ export async function calculateSkillDemandSupplyGaps(
 
     const matchingSignals = dbEmployerSignals.filter(es =>
       es.skill_id === skill.id &&
-      (resolvedDistrictId === 'ALL' || es.district_id === resolvedDistrictId) &&
-      (resolvedSectorId === 'ALL' || es.sector_id === resolvedSectorId)
+      (targetDistrictId === 'ALL' || es.district_id === targetDistrictId) &&
+      (targetSectorId === 'ALL' || es.sector_id === targetSectorId)
     );
     const employerSignalsCount = matchingSignals.length;
     const expectedHires = matchingSignals.reduce((sum, es) => sum + (es.expected_hires || 0), 0);
@@ -430,8 +430,8 @@ export async function calculateSkillDemandSupplyGaps(
 
     const matchingTs = dbTimeSeries.filter(ts =>
       ts.skill_id === skill.id &&
-      (resolvedDistrictId === 'ALL' || ts.district_id === resolvedDistrictId) &&
-      (resolvedSectorId === 'ALL' || ts.sector_id === resolvedSectorId)
+      (targetDistrictId === 'ALL' || ts.district_id === targetDistrictId) &&
+      (targetSectorId === 'ALL' || ts.sector_id === targetSectorId)
     );
 
     let growthRatePct: number | null = null;
@@ -471,7 +471,7 @@ export async function calculateSkillDemandSupplyGaps(
 
     // Contributing Occupations & Courses
     const contributingOccs = dbOccupations
-      .filter(o => resolvedSectorId === 'ALL' || o.sector_id === resolvedSectorId)
+      .filter(o => targetSectorId === 'ALL' || o.sector_id === targetSectorId)
       .map(o => `${o.title} (NCO-${o.nco_code})`)
       .slice(0, 3);
 
@@ -506,9 +506,9 @@ export async function calculateSkillDemandSupplyGaps(
       skill_id: skill.id,
       skill_name: skill.canonical_name,
       category: skill.category,
-      district_id: resolvedDistrictId === 'ALL' ? undefined : resolvedDistrictId,
+      district_id: targetDistrictId === 'ALL' ? undefined : targetDistrictId,
       district_name: districtName,
-      sector_id: resolvedSectorId === 'ALL' ? undefined : resolvedSectorId,
+      sector_id: targetSectorId === 'ALL' ? undefined : targetSectorId,
       sector_name: sectorName,
 
       demandScore,

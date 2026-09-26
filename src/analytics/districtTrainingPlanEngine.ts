@@ -178,16 +178,17 @@ export async function generateDistrictTrainingPlans(
   const [
     allGapsArrays,
     recommendations,
-    readinessData,
+    readinessArrays,
     emergingSkills
   ] = await Promise.all([
     Promise.all(targetDistricts.map(d => calculateSkillDemandSupplyGaps({ districtId: d, sectorId: sectorName === 'ALL' ? 'ALL' : sectorName }))),
     generateCurriculumRecommendations(),
-    calculateTrainingReadiness('ALL'),
+    Promise.all(targetDistricts.map(d => calculateTrainingReadiness(d))),
     detectEmergingSkills()
   ]);
 
   const gapResults = allGapsArrays.flat();
+  const readinessData = readinessArrays.flat();
 
   // Calculate dynamic maximums for normalization across dataset scope
   const maxDirectDemand = Math.max(1, ...gapResults.map((g) => g.directHiringDemand));
